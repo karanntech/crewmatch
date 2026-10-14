@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import assignedData from "@/data/assigned-customers.json";
 import candidatesPoolData from "@/data/pool-candidates.json";
 import { Customer, Biodata, MatchRecommendation, MatchmakerNote } from "@/lib/types";
-import { matchCandidatesForCustomer } from "@/lib/matching-algo";
+import { matchCandidatesForCustomer, DealbreakerFlag } from "@/lib/matching-algo";
 import { 
   ArrowLeft, 
   Sparkles, 
@@ -23,7 +23,12 @@ import {
   ShieldCheck, 
   CheckCircle2, 
   AlertCircle,
-  Plus
+  AlertTriangle,
+  Plus,
+  Columns2,
+  Copy,
+  Check,
+  Share2
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,14 +46,11 @@ export default function CustomerDetailPage({
   const { id } = use(params);
   const router = useRouter();
 
-  // Load client from mock data
   const customer = (assignedData as Customer[]).find((c) => c.id === id);
 
-  // Notes state
   const [newNote, setNewNote] = useState("");
   const [notesList, setNotesList] = useState<MatchmakerNote[]>(customer?.notes || []);
 
-  // Matching algorithm recommendations (opposite gender pool)
   const pool = candidatesPoolData as Biodata[];
   const matchRecommendations = useMemo(() => {
     if (!customer) return [];
@@ -56,10 +58,21 @@ export default function CustomerDetailPage({
   }, [customer, pool]);
 
   // Modal / AI State
-  const [selectedCandidate, setSelectedCandidate] = useState<MatchRecommendation | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [aiIntroText, setAiIntroText] = useState("");
+  const [selectedCandidate, setSelectedCandidate] = useState<
+    (MatchRecommendation & { dealbreakers: DealbreakerFlag[] }) | null
+  >(null);
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
+  const [compareCandidate, setCompareCandidate] = useState<Biodata | null>(null);
+
+  // Pitches State
+  const [emailPitch, setEmailPitch] = useState("");
+  const [whatsAppPitch, setWhatsAppPitch] = useState("");
+  const [pitchTab, setPitchTab] = useState<"email" | "whatsapp">("email");
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // AI Reasoning State
   const [aiFitReason, setAiFitReason] = useState<Record<string, string>>({});
   const [isReasonLoading, setIsReasonLoading] = useState<string | null>(null);
 
@@ -74,7 +87,6 @@ export default function CustomerDetailPage({
     );
   }
 
-  // Handle adding notes
   const handleAddNote = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNote.trim()) return;
@@ -91,10 +103,11 @@ export default function CustomerDetailPage({
     toast.success("Matchmaker note logged successfully");
   };
 
-  // Trigger Match action and open mock email dialog
-  const handleOpenSendMatchModal = async (recommendation: MatchRecommendation) => {
+  const handleOpenSendMatchModal = async (
+    recommendation: MatchRecommendation & { dealbreakers: DealbreakerFlag[] }
+  ) => {
     setSelectedCandidate(recommendation);
-    setIsModalOpen(true);
+    setIsSendModalOpen(true);
     setIsAiLoading(true);
 
     try {
@@ -107,15 +120,29 @@ export default function CustomerDetailPage({
         }),
       });
       const data = await res.json();
-      setAiIntroText(data.introText || "");
+      setEmailPitch(data.emailPitch || "");
+      setWhatsAppPitch(data.whatsAppPitch || "");
     } catch {
-      setAiIntroText(`Hi ${customer.firstName}, please review the attached profile of ${recommendation.candidate.firstName}.`);
+      setEmailPitch(`Hi ${customer.firstName}, please review the attached profile of ${recommendation.candidate.firstName}.`);
+      setWhatsAppPitch(`Hi ${customer.firstName}! Check out ${recommendation.candidate.firstName}'s biodata! ✨`);
     } finally {
       setIsAiLoading(false);
     }
   };
 
-  // Request on-demand AI Profile Fit Reasoning
+  const handleOpenCompareModal = (candidate: Biodata) => {
+    setCompareCandidate(candidate);
+    setIsCompareModalOpen(true);
+  };
+
+  const handleCopyPitch = () => {
+    const textToCopy = pitchTab === "email" ? emailPitch : whatsAppPitch;
+    navigator.clipboard.writeText(textToCopy);
+    setCopied(true);
+    toast.success(`${pitchTab === "email" ? "Email" : "WhatsApp"} pitch copied to clipboard!`);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const handleGetAiReasoning = async (candidateId: string, candidate: Biodata) => {
     setIsReasonLoading(candidateId);
     try {
@@ -135,15 +162,14 @@ export default function CustomerDetailPage({
     }
   };
 
-  // Dispatch mock email
   const handleConfirmSendMatch = () => {
     if (!selectedCandidate) return;
 
-    toast.success(`Match profile for ${selectedCandidate.candidate.firstName} sent to ${customer.firstName}!`, {
-      description: `Dispatched via simulated notification to ${customer.email}`,
+    toast.success(`Match for ${selectedCandidate.candidate.firstName} dispatched!`, {
+      description: `Notification sent via ${pitchTab === "email" ? "email" : "WhatsApp bridge"} to ${customer.firstName}`,
     });
 
-    setIsModalOpen(false);
+    setIsSendModalOpen(false);
   };
 
   return (
@@ -219,7 +245,7 @@ export default function CustomerDetailPage({
           </CardContent>
         </Card>
 
-        {/* Tabs: Matches Pool, Full Biodata, Notes */}
+        {/* Tabs */}
         <Tabs defaultValue="matches" className="w-full">
           <TabsList className="grid grid-cols-3 max-w-md bg-slate-200/70 p-1">
             <TabsTrigger value="matches" className="text-xs font-semibold">
@@ -233,16 +259,16 @@ export default function CustomerDetailPage({
             </TabsTrigger>
           </TabsList>
 
-          {/* TAB 1: MATCHING ENGINE & CANDIDATE POOL */}
+          {/* TAB 1: MATCHING ENGINE */}
           <TabsContent value="matches" className="mt-6 space-y-4">
             <div className="bg-linear-to-r from-rose-50 to-amber-50 border border-rose-200/60 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-rose-600" />
-                  TDC Gender-Specific Algorithmic Match Pool
+                  TDC Smart Matching Engine & Dealbreaker Radar
                 </h3>
                 <p className="text-xs text-slate-600 mt-0.5">
-                  Showing opposite-gender candidates ranked by multi-variable compatibility (Age, Height, Career, Values & Children preferences).
+                  Opposite-gender candidates ranked by gender-specific logic with real-time non-negotiable checks (diet, kids, relocation).
                 </p>
               </div>
               <Badge variant="outline" className="bg-white text-slate-700 text-xs font-mono self-start sm:self-auto">
@@ -287,8 +313,8 @@ export default function CustomerDetailPage({
                             </span>
                           </div>
 
-                          {/* Synergy and Friction pills */}
-                          <div className="space-y-1 pt-1">
+                          {/* Synergy Pills */}
+                          <div className="space-y-1.5 pt-1">
                             <div className="flex flex-wrap gap-1.5 items-center">
                               {rec.reasons.slice(0, 3).map((reason, i) => (
                                 <span
@@ -302,16 +328,35 @@ export default function CustomerDetailPage({
                               {rec.potentialConcerns.slice(0, 1).map((concern, i) => (
                                 <span
                                   key={i}
-                                  className="inline-flex items-center gap-1 text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-md"
+                                  className="inline-flex items-center gap-1 text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200 px-2 py-0.5 rounded-md"
                                 >
                                   <AlertCircle className="w-3 h-3" />
                                   {concern}
                                 </span>
                               ))}
                             </div>
+
+                            {/* Dealbreaker Alert Badges */}
+                            {rec.dealbreakers.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 items-center pt-0.5">
+                                {rec.dealbreakers.map((db, i) => (
+                                  <span
+                                    key={i}
+                                    className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
+                                      db.severity === "critical"
+                                        ? "bg-rose-50 text-rose-700 border-rose-200 animate-pulse"
+                                        : "bg-amber-50 text-amber-700 border-amber-200"
+                                    }`}
+                                  >
+                                    <AlertTriangle className="w-3 h-3" />
+                                    {db.label}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
 
-                          {/* AI Reasoning Blurb if invoked */}
+                          {/* AI Fit Blurb */}
                           {hasAiReason && (
                             <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700">
                               <span className="font-semibold text-rose-600 flex items-center gap-1 mb-1">
@@ -331,7 +376,17 @@ export default function CustomerDetailPage({
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs border-slate-200 text-slate-600 hover:text-slate-900"
+                              onClick={() => handleOpenCompareModal(candidate)}
+                            >
+                              <Columns2 className="w-3 h-3 mr-1" />
+                              Compare
+                            </Button>
+
                             {!hasAiReason && (
                               <Button
                                 size="sm"
@@ -366,7 +421,6 @@ export default function CustomerDetailPage({
           {/* TAB 2: DETAILED BIODATA VIEW */}
           <TabsContent value="biodata" className="mt-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Demographics & Personal */}
               <Card className="border-slate-200">
                 <CardHeader>
                   <CardTitle className="text-base">Demographics & Personal Background</CardTitle>
@@ -399,7 +453,6 @@ export default function CustomerDetailPage({
                 </CardContent>
               </Card>
 
-              {/* Career & Education */}
               <Card className="border-slate-200">
                 <CardHeader>
                   <CardTitle className="text-base">Education & Professional Standing</CardTitle>
@@ -428,7 +481,6 @@ export default function CustomerDetailPage({
                 </CardContent>
               </Card>
 
-              {/* Lifestyle & Match Preferences */}
               <Card className="border-slate-200 md:col-span-2">
                 <CardHeader>
                   <CardTitle className="text-base">Lifestyle, Beliefs & Family Planning</CardTitle>
@@ -471,7 +523,7 @@ export default function CustomerDetailPage({
             </div>
           </TabsContent>
 
-          {/* TAB 3: MATCHMAKER NOTES LOG */}
+          {/* TAB 3: NOTES */}
           <TabsContent value="notes" className="mt-6 space-y-6">
             <Card className="border-slate-200">
               <CardHeader>
@@ -486,7 +538,7 @@ export default function CustomerDetailPage({
               <CardContent>
                 <form onSubmit={handleAddNote} className="space-y-3">
                   <Textarea
-                    placeholder="Enter notes from recent conversation (e.g. client is open to relocating if partner is in Bengaluru)..."
+                    placeholder="Enter notes from recent conversation..."
                     value={newNote}
                     onChange={(e) => setNewNote(e.target.value)}
                     rows={3}
@@ -511,7 +563,7 @@ export default function CustomerDetailPage({
                     <CardContent className="p-4 space-y-1">
                       <div className="flex items-center justify-between text-xs text-slate-500">
                         <span className="font-semibold text-slate-700">{note.author}</span>
-                        <span>{new Date(note.createdAt).toLocaleDateString()} at {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>{new Date(note.createdAt).toLocaleDateString()}</span>
                       </div>
                       <p className="text-xs text-slate-800 leading-relaxed pt-1">{note.content}</p>
                     </CardContent>
@@ -523,16 +575,102 @@ export default function CustomerDetailPage({
         </Tabs>
       </div>
 
-      {/* MATCH ACTION MODAL / SEND INTRO */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      {/* MODAL 1: SIDE-BY-SIDE BIODATA COMPARISON */}
+      <Dialog open={isCompareModalOpen} onOpenChange={setIsCompareModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Columns2 className="w-5 h-5 text-slate-700" />
+              Side-by-Side Matchmaker Comparison
+            </DialogTitle>
+            <DialogDescription>
+              Evaluating compatibility parameters between client and candidate profile.
+            </DialogDescription>
+          </DialogHeader>
+
+          {compareCandidate && (
+            <div className="space-y-4 my-2 text-xs">
+              <div className="grid grid-cols-2 gap-4 bg-slate-100 p-3 rounded-lg font-bold text-slate-800">
+                <div>Client: {customer.firstName} {customer.lastName} ({customer.gender})</div>
+                <div>Candidate: {compareCandidate.firstName} {compareCandidate.lastName} ({compareCandidate.gender})</div>
+              </div>
+
+              <div className="space-y-2 border border-slate-200 rounded-lg p-3">
+                <div className="grid grid-cols-3 py-1.5 border-b">
+                  <span className="text-slate-500 font-medium">Age & Height</span>
+                  <span className="font-semibold">{customer.age} yrs • {customer.heightFormatted}</span>
+                  <span className="font-semibold">{compareCandidate.age} yrs • {compareCandidate.heightFormatted}</span>
+                </div>
+
+                <div className="grid grid-cols-3 py-1.5 border-b">
+                  <span className="text-slate-500 font-medium">Location</span>
+                  <span className="font-semibold">{customer.city}</span>
+                  <span className={`font-semibold ${customer.city === compareCandidate.city ? "text-emerald-600" : ""}`}>
+                    {compareCandidate.city}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 py-1.5 border-b">
+                  <span className="text-slate-500 font-medium">Career & Income</span>
+                  <span className="font-semibold">{customer.designation} ({customer.incomeFormatted})</span>
+                  <span className="font-semibold">{compareCandidate.designation} ({compareCandidate.incomeFormatted})</span>
+                </div>
+
+                <div className="grid grid-cols-3 py-1.5 border-b">
+                  <span className="text-slate-500 font-medium">Education</span>
+                  <span className="font-semibold">{customer.degree} ({customer.undergradCollege})</span>
+                  <span className="font-semibold">{compareCandidate.degree} ({compareCandidate.undergradCollege})</span>
+                </div>
+
+                <div className="grid grid-cols-3 py-1.5 border-b">
+                  <span className="text-slate-500 font-medium">Dietary Style</span>
+                  <span className="font-semibold">{customer.diet}</span>
+                  <span className={`font-semibold ${customer.diet === compareCandidate.diet ? "text-emerald-600" : "text-amber-600"}`}>
+                    {compareCandidate.diet}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 py-1.5 border-b">
+                  <span className="text-slate-500 font-medium">Wants Kids?</span>
+                  <span className="font-semibold">{customer.wantKids}</span>
+                  <span className={`font-semibold ${customer.wantKids === compareCandidate.wantKids ? "text-emerald-600" : "text-rose-600"}`}>
+                    {compareCandidate.wantKids}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 py-1.5 border-b">
+                  <span className="text-slate-500 font-medium">Open to Relocate?</span>
+                  <span className="font-semibold">{customer.openToRelocate}</span>
+                  <span className="font-semibold">{compareCandidate.openToRelocate}</span>
+                </div>
+
+                <div className="grid grid-cols-3 py-1.5">
+                  <span className="text-slate-500 font-medium">Religion & Caste</span>
+                  <span className="font-semibold">{customer.religion} • {customer.caste}</span>
+                  <span className="font-semibold">{compareCandidate.religion} • {compareCandidate.caste}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button size="sm" onClick={() => setIsCompareModalOpen(false)}>
+              Close Comparison
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 2: SEND MATCH DISPATCH (EMAIL + WHATSAPP) */}
+      <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Heart className="w-5 h-5 text-rose-600" />
-              Dispatch Suggested Match
+              Dispatch Match Introduction
             </DialogTitle>
             <DialogDescription>
-              Preview the personalized introduction blurb and biodata snapshot before notifying the customer.
+              Choose delivery channel and preview customized intro copy before sending.
             </DialogDescription>
           </DialogHeader>
 
@@ -545,43 +683,75 @@ export default function CustomerDetailPage({
                 <p className="text-slate-600 mt-0.5">
                   {selectedCandidate.candidate.age} yrs • {selectedCandidate.candidate.designation} at {selectedCandidate.candidate.currentCompany} • {selectedCandidate.candidate.city}
                 </p>
-                <p className="text-slate-500 mt-1">
-                  Income: {selectedCandidate.candidate.incomeFormatted} • Education: {selectedCandidate.candidate.degree}
-                </p>
               </div>
 
-              <div>
-                <label className="font-semibold text-slate-700 block mb-1">
-                  AI-Generated Matchmaker Introduction:
-                </label>
-                {isAiLoading ? (
-                  <div className="p-4 text-center text-slate-500 bg-slate-50 rounded-md border border-slate-200">
-                    <Sparkles className="w-4 h-4 mx-auto animate-spin text-rose-500 mb-1" />
-                    Drafting personalized pitch via AI...
-                  </div>
-                ) : (
-                  <Textarea
-                    className="h-28 text-xs font-sans leading-relaxed"
-                    value={aiIntroText}
-                    onChange={(e) => setAiIntroText(e.target.value)}
-                  />
-                )}
+              {/* Channel Tabs */}
+              <div className="flex items-center justify-between">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPitchTab("email")}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                      pitchTab === "email"
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    Formal Email
+                  </button>
+                  <button
+                    onClick={() => setPitchTab("whatsapp")}
+                    className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                      pitchTab === "whatsapp"
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    WhatsApp Pitch
+                  </button>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCopyPitch}
+                  className="text-xs h-7 text-slate-600"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
+                  {copied ? "Copied" : "Copy"}
+                </Button>
               </div>
+
+              {isAiLoading ? (
+                <div className="p-6 text-center text-slate-500 bg-slate-50 rounded-md border border-slate-200">
+                  <Sparkles className="w-4 h-4 mx-auto animate-spin text-rose-500 mb-1" />
+                  Generating tailored {pitchTab === "email" ? "email" : "WhatsApp"} pitch via AI...
+                </div>
+              ) : (
+                <Textarea
+                  className="h-32 text-xs font-sans leading-relaxed"
+                  value={pitchTab === "email" ? emailPitch : whatsAppPitch}
+                  onChange={(e) =>
+                    pitchTab === "email" ? setEmailPitch(e.target.value) : setWhatsAppPitch(e.target.value)
+                  }
+                />
+              )}
             </div>
           )}
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>
+            <Button variant="outline" size="sm" onClick={() => setIsSendModalOpen(false)}>
               Cancel
             </Button>
             <Button
               size="sm"
-              className="bg-rose-600 hover:bg-rose-700 text-white"
+              className={pitchTab === "whatsapp" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "bg-rose-600 hover:bg-rose-700 text-white"}
               onClick={handleConfirmSendMatch}
               disabled={isAiLoading}
             >
               <Send className="w-3.5 h-3.5 mr-1" />
-              Send to {customer.firstName}
+              Dispatch to {customer.firstName}
             </Button>
           </DialogFooter>
         </DialogContent>
