@@ -10,7 +10,6 @@ import { matchCandidatesForCustomer } from "@/lib/matching-algo";
 import { 
   ArrowLeft, 
   Sparkles, 
-  UserCheck, 
   Briefcase, 
   GraduationCap, 
   MapPin, 
@@ -19,7 +18,6 @@ import {
   Heart, 
   Send, 
   MessageSquare, 
-  Calendar, 
   ShieldCheck, 
   CheckCircle2, 
   AlertCircle,
@@ -42,8 +40,7 @@ export default function CustomerDetailPage({
   const router = useRouter();
 
   // Load client from mock data
-  const initialCustomer = (assignedData as Customer[]).find((c) => c.id === id);
-  const [customer, setCustomer] = useState<Customer | undefined>(initialCustomer);
+  const customer = (assignedData as Customer[]).find((c) => c.id === id);
 
   // Notes state
   const [newNote, setNewNote] = useState("");
