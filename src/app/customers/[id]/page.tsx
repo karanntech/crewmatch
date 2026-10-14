@@ -65,6 +65,15 @@ function CustomerDetailContent() {
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [compareCandidate, setCompareCandidate] = useState<Biodata | null>(null);
 
+  // Candidate Inspection Modal State
+  const [viewCandidate, setViewCandidate] = useState<Biodata | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+
+  const handleOpenViewCandidate = (candidate: Biodata) => {
+    setViewCandidate(candidate);
+    setIsViewModalOpen(true);
+  };
+
   // Pitches State
   const [emailPitch, setEmailPitch] = useState("");
   const [whatsAppPitch, setWhatsAppPitch] = useState("");
@@ -289,7 +298,11 @@ function CustomerDetailContent() {
                         <div className="space-y-2 flex-1">
                           <div className="flex items-center gap-3 flex-wrap">
                             <span className="text-xs font-mono font-bold text-slate-400">#{idx + 1}</span>
-                            <h4 className="text-lg font-bold text-slate-900">
+                            <h4
+                              onClick={() => handleOpenViewCandidate(candidate)}
+                              className="text-lg font-bold text-slate-900 hover:text-rose-600 hover:underline cursor-pointer transition-colors"
+                              title="Click to view full biodata"
+                            >
                               {candidate.firstName} {candidate.lastName}
                             </h4>
                             <span className="text-xs text-slate-400">•</span>
@@ -661,7 +674,7 @@ function CustomerDetailContent() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL 2: SEND MATCH DISPATCH (EMAIL + WHATSAPP) */}
+{/* MODAL 2: SEND MATCH DISPATCH (EMAIL + WHATSAPP) */}
       <Dialog open={isSendModalOpen} onOpenChange={setIsSendModalOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -752,6 +765,114 @@ function CustomerDetailContent() {
             >
               <Send className="w-3.5 h-3.5 mr-1" />
               Dispatch to {customer.firstName}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 3: CANDIDATE FULL BIODATA VIEW */}
+      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" />
+              Verified Candidate Biodata
+            </DialogTitle>
+            <DialogDescription>
+              Comprehensive candidate record from the TDC matchmaking pool.
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewCandidate && (
+            <div className="space-y-4 my-2 text-xs">
+              <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {viewCandidate.firstName} {viewCandidate.lastName}
+                  </h3>
+                  <p className="text-slate-600 mt-0.5">
+                    {viewCandidate.age} yrs • {viewCandidate.heightFormatted} ({viewCandidate.heightCm} cm) • {viewCandidate.gender}
+                  </p>
+                  <p className="text-slate-500 mt-1">
+                    {viewCandidate.city}, {viewCandidate.country} • {viewCandidate.maritalStatus}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs text-slate-400 font-medium">Income</span>
+                  <p className="text-lg font-bold text-emerald-700">{viewCandidate.incomeFormatted}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="border border-slate-200 rounded-lg p-3 space-y-2">
+                  <h5 className="font-semibold text-slate-800 text-[11px] uppercase tracking-wider">Career & Education</h5>
+                  <div className="flex justify-between border-b pb-1 text-slate-600">
+                    <span>College:</span>
+                    <strong className="text-slate-900">{viewCandidate.undergradCollege}</strong>
+                  </div>
+                  <div className="flex justify-between border-b pb-1 text-slate-600">
+                    <span>Degree:</span>
+                    <strong className="text-slate-900">{viewCandidate.degree}</strong>
+                  </div>
+                  <div className="flex justify-between border-b pb-1 text-slate-600">
+                    <span>Employer:</span>
+                    <strong className="text-slate-900">{viewCandidate.currentCompany}</strong>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Role:</span>
+                    <strong className="text-slate-900">{viewCandidate.designation}</strong>
+                  </div>
+                </div>
+
+                <div className="border border-slate-200 rounded-lg p-3 space-y-2">
+                  <h5 className="font-semibold text-slate-800 text-[11px] uppercase tracking-wider">Cultural Background</h5>
+                  <div className="flex justify-between border-b pb-1 text-slate-600">
+                    <span>Religion:</span>
+                    <strong className="text-slate-900">{viewCandidate.religion}</strong>
+                  </div>
+                  <div className="flex justify-between border-b pb-1 text-slate-600">
+                    <span>Caste:</span>
+                    <strong className="text-slate-900">{viewCandidate.caste}</strong>
+                  </div>
+                  <div className="flex justify-between border-b pb-1 text-slate-600">
+                    <span>Manglik Status:</span>
+                    <strong className="text-slate-900">{viewCandidate.manglikStatus}</strong>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span>Languages:</span>
+                    <strong className="text-slate-900">{viewCandidate.languagesKnown.join(", ")}</strong>
+                  </div>
+                </div>
+
+                <div className="border border-slate-200 rounded-lg p-3 space-y-2 md:col-span-2">
+                  <h5 className="font-semibold text-slate-800 text-[11px] uppercase tracking-wider">Lifestyle & Values</h5>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center pt-1">
+                    <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                      <span className="text-slate-400 block text-[10px]">Wants Kids</span>
+                      <span className="font-bold text-slate-800">{viewCandidate.wantKids}</span>
+                    </div>
+                    <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                      <span className="text-slate-400 block text-[10px]">Open to Relocate</span>
+                      <span className="font-bold text-slate-800">{viewCandidate.openToRelocate}</span>
+                    </div>
+                    <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                      <span className="text-slate-400 block text-[10px]">Diet</span>
+                      <span className="font-bold text-slate-800">{viewCandidate.diet}</span>
+                    </div>
+                    <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                      <span className="text-slate-400 block text-[10px]">Family Values</span>
+                      <span className="font-bold text-slate-800">{viewCandidate.familyValues}</span>
+                    </div>
+                  </div>
+                  <p className="text-slate-600 italic mt-2 pt-2 border-t text-[11px]">&ldquo;{viewCandidate.bio}&rdquo;</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button size="sm" onClick={() => setIsViewModalOpen(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
