@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Clean, modern UI body font
+const fontSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Refined serif for headings & badges
+const fontSerif = Playfair_Display({
   subsets: ["latin"],
+  variable: "--font-serif",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -24,8 +28,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="en" className={`${fontSans.variable} ${fontSerif.variable}`}>
+      <body className="font-sans antialiased bg-slate-50 text-slate-900">
         {children}
         <Toaster position="top-right" richColors />
       </body>
