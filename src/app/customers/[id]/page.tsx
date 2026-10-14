@@ -1,25 +1,25 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import assignedData from "@/data/assigned-customers.json";
 import candidatesPoolData from "@/data/pool-candidates.json";
 import { Customer, Biodata, MatchRecommendation, MatchmakerNote } from "@/lib/types";
 import { matchCandidatesForCustomer, DealbreakerFlag } from "@/lib/matching-algo";
-import { 
-  ArrowLeft, 
-  Sparkles, 
-  Briefcase, 
-  GraduationCap, 
-  MapPin, 
-  Phone, 
-  Mail, 
-  Heart, 
-  Send, 
-  MessageSquare, 
-  ShieldCheck, 
-  CheckCircle2, 
+import {
+  ArrowLeft,
+  Sparkles,
+  Briefcase,
+  GraduationCap,
+  MapPin,
+  Phone,
+  Mail,
+  Heart,
+  Send,
+  MessageSquare,
+  ShieldCheck,
+  CheckCircle2,
   AlertCircle,
   AlertTriangle,
   Plus,
@@ -36,10 +36,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-export default function CustomerDetailPage() {
+function CustomerDetailContent() {
   const router = useRouter();
   const routeParams = useParams();
-  const id = typeof routeParams?.id === "string" ? routeParams.id : Array.isArray(routeParams?.id) ? routeParams.id[0] : "";
+  const id =
+    typeof routeParams?.id === "string"
+      ? routeParams.id
+      : Array.isArray(routeParams?.id)
+      ? routeParams.id[0]
+      : "";
 
   const customer = (assignedData as Customer[]).find((c) => c.id === id);
 
@@ -81,8 +86,6 @@ export default function CustomerDetailPage() {
       </div>
     );
   }
-
-  // ... [Keep the rest of your functions & JSX exactly as they are] ...
 
   const handleAddNote = (e: React.FormEvent) => {
     e.preventDefault();
@@ -754,5 +757,19 @@ export default function CustomerDetailPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function CustomerDetailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 text-sm text-slate-500">
+          Loading customer…
+        </div>
+      }
+    >
+      <CustomerDetailContent />
+    </Suspense>
   );
 }
