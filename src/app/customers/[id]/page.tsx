@@ -1,10 +1,8 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
-import { use, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import assignedData from "@/data/assigned-customers.json";
 import candidatesPoolData from "@/data/pool-candidates.json";
 import { Customer, Biodata, MatchRecommendation, MatchmakerNote } from "@/lib/types";
@@ -38,13 +36,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-export default function CustomerDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+export default function CustomerDetailPage() {
   const router = useRouter();
+  const routeParams = useParams();
+  const id = typeof routeParams?.id === "string" ? routeParams.id : Array.isArray(routeParams?.id) ? routeParams.id[0] : "";
 
   const customer = (assignedData as Customer[]).find((c) => c.id === id);
 
@@ -86,6 +81,8 @@ export default function CustomerDetailPage({
       </div>
     );
   }
+
+  // ... [Keep the rest of your functions & JSX exactly as they are] ...
 
   const handleAddNote = (e: React.FormEvent) => {
     e.preventDefault();
